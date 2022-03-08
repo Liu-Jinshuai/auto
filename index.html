@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>automatic</title>
+    <script src="vue.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="ele.css">
+    <!-- 引入组件库 -->
+    <script src="ele.js"></script>
+    <style>
+        .textclass {
+            width: 50%;
+            margin-left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .bu {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10em;
+        }
+
+        .tipclass {
+            font-size: 12px;
+            color: #F56C6C;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="text-align: center;">automatic自动化工具</h1>
+    
+  </el-tag>
+    <div id="app">
+        <div v-if="link==1" style="text-align: center;margin-bottom: 1vh;">连接状态：<span style="color: #E6A23C;">连接中</span></div>
+        <div v-if="link==2" style="text-align: center;margin-bottom: 1vh;">连接状态：<span style="color: #67C23A;">连接成功</span></div>
+        <div v-if="link==3" style="text-align: center;margin-bottom: 1vh;">连接状态：<span style="color: #F56C6C;">连接失败</span></div>
+        <el-input id="textarea_id" class="textclass" type="textarea" :rows="10" placeholder="请输入内容" v-model="textarea">
+        </el-input>
+        <div class="bu">
+            <el-button @click="dialogVisible=true" type="primary">添加指令</el-button>
+            <el-button @click="dialogVisible2=true" style="margin: 0 10em;" class="bu1" type="success">立即运行</el-button>
+            <el-button @click="deleteMeth" type="danger">删除指令</el-button>
+        </div>
+
+        <el-dialog title="提示" :visible.sync="dialogVisible2" width="30%">
+            <el-radio v-model="runSize" label="1">运行一次</el-radio>
+            <el-radio v-model="runSize" label="2">循环运行</el-radio>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible2 = false">取 消</el-button>
+                <el-button type="primary" @click="runMeth">确 定</el-button>
+            </span>
+        </el-dialog>
+
+
+        <el-dialog title="添加指令信息" :visible.sync="dialogVisible" width="30%">
+            <div style="margin-bottom: 2vh;">鼠标键盘指令</div>
+            <el-radio v-model="radio" label="1">单击</el-radio>
+            <el-radio v-model="radio" label="2">双击</el-radio>
+            <el-radio v-model="radio" label="3">右键</el-radio>
+            <el-radio v-model="radio" label="4">输入</el-radio>
+            <el-radio v-model="radio" label="5">等待</el-radio>
+            <el-radio v-model="radio" label="6">滚轮</el-radio>
+            <el-radio v-model="radio" label="7">回车</el-radio>
+            <el-radio v-model="radio" label="8">空格</el-radio>
+            <div style="margin: 2vh 0">执行参数</div>
+
+            <div v-if="radio==1||radio==2||radio==3">
+                <div class="tipclass">
+                    <div>您正在执行点击事件，请选择要点击的图形区域</div>
+                    <div>您可以自动截取屏幕的一部分并保存为图片，选择您保存的位置，程序会（查找图片）为您点击该区域</div>
+                </div>
+                <el-input style="margin-top: 2vh;" v-model="valueMsg" placeholder="请输入图片文件路径"></el-input>
+            </div>
+
+            <div v-else>
+                <div v-if="radio==4" class="tipclass">
+                    <div>该程序将自动将您的内容输入到焦点区域（输入框）</div>
+                </div>
+                <div v-if="radio==5" class="tipclass">
+                    <div>该程序将自动停留一段时间再执行下条指令</div>
+                </div>
+                <div v-if="radio==6" class="tipclass">
+                    <div>该程序将执行鼠标滚轮操作</div>
+                    <div>如：1000 屏幕将往上滚动 -1000 屏幕将往下滚动</div>
+                </div>
+                <div v-if="radio==7" class="tipclass">
+                    <div>该程序将执行键盘回车操作</div>
+                </div>
+                <div v-if="radio==8" class="tipclass">
+                    <div>该程序将执行键盘空格操作</div>
+                </div>
+                <el-input v-if="radio!=7&&radio!=8" style="margin-top: 2vh;" v-model="valueMsg"
+                    :placeholder="radio==4?'请输入赋值的值':radio==5?'输入停留时长（秒）':radio==6?'请输入滚动距离（像素）':''"></el-input>
+            </div>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false">取 消</el-button>
+                <el-button type="primary" @click="okMeth">确 定</el-button>
+            </span>
+        </el-dialog>
+    </div>
+</body>
+<script>
+    let app = new Vue({
+        el: "#app",
+        data: {
+            textarea: "",
+            socket: "",
+            DELETEKEY: "deletekey",
+            ADDKEY: "addkey",
+            RUNKEY: "runkey",
+            RUNWHILEKEY:"runwhilekey",
+            dialogVisible: false,
+            dialogVisible2:false,
+            radio: "1",
+            valueMsg: "",
+            runSize:"1",
+            link:1
+        },
+        mounted() {
+            let that = this;
+            // Create WebSocket connection.
+            const socket = new WebSocket('ws://localhost:6688');
+
+            this.socket = socket;
+            // Connection opened
+            socket.addEventListener('open', function (event) {
+                that.link = 2
+            });
+            socket.addEventListener('onerror', function (event) {
+                that.link = 3
+            });
+            // Listen for messages
+            socket.addEventListener('message', function (event) {
+                console.log('Message from server ', event.data);
+                that.textarea += event.data
+                that.$nextTick(() => {
+                    setTimeout(() => {
+                        const textarea = document.getElementById('textarea_id');
+                        textarea.scrollTop = textarea.scrollHeight;
+                    }, 13)
+                })
+            });
+        },
+        methods: {
+            sendMeth(key, objs) {
+                let obj = {
+                    name: key,
+                    value: objs
+                }
+                this.socket.send(JSON.stringify(obj));
+            },
+            deleteMeth() {
+                this.sendMeth(this.DELETEKEY, '')
+            },
+            runMeth() {
+                if(this.runSize==1){
+                    this.sendMeth(this.RUNKEY, '')
+                }else if(this.runSize==2){
+                    this.sendMeth(this.RUNWHILEKEY, '')
+                }
+                this.dialogVisible2 = false;
+                
+            },
+            addMeth(obj) {
+                this.sendMeth(this.ADDKEY, obj)
+            },
+            okMeth() {
+                if (this.radio != 7 && this.radio != 8) {
+                    if (!this.valueMsg) {
+                        this.$message.error('请填写输入框内容');
+                        return;
+                    }
+                }
+                this.dialogVisible = false
+                this.addMeth({
+                    name: this.radio,
+                    value: this.valueMsg
+                })
+            }
+        }
+    });
+</script>
+
+</html>
